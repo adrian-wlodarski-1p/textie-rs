@@ -8,11 +8,11 @@ pub mod err_mes {
 	pub const edit_err: &str = "I apologize for the inconvinience, but an editing engine has thrown an error while trying to run \"?edit [line]\". Instead of that, you can do the folowing: use \"?print [line]\", then copy it using Ctrl+C (Cmd+C on MacOS), use \"?replace [line]\", and press Ctrl+V (Cmd+V on MacOS).";
 }
 
-fn apply_to_lines(text: &mut str, fun: impl Fn(&mut Vec<&str>) -> Result<(),InputError>, index: &str) {
+fn apply_to_lines(text: &mut String, fun: impl Fn(&mut Vec<&str>, usize) -> Result<(),InputError>, index: &str) {
 	let mut lines: Vec<&str> = text.split("\n").collect();
 	if let Ok(index) = index.parse::<usize>() && index < lines.len() {
-		match fun(&mut lines) {
-			Ok(_) => text = lines.join("\n").as_str(),
+		match fun(&mut lines, index) {
+			Ok(_) => text = lines.join("\n");
 			Err(GetLineErr(_)) => println!("{}", err_mes::input_err),
 			Err(EditErr(_)) => println!("{}", err_mes::edit_err),
 		}
@@ -39,16 +39,16 @@ fn editor_loop() /*-> Result<(), Box<dyn Error>>*/ {
 		match (com, arg) {
 			(Some("?clean"), _) => { text = String::new(); },
 			(Some("?delete"), Some(index)) => {
-				apply_to_lines(&mut text, |lns| lns.remove(index), index);
+				apply_to_lines(&mut text, |lns, ind| Ok(lns.remove(ind)), index);
 			},
 			(Some("?edit"), Some(index)) => {
-				apply_to_lines(&mut text, |lns| lns[index] = input.edit_line("Edit line: ", lns[index])?, index);
+				apply_to_lines(&mut text, |lns, ind| lns[ind] = input.edit_line("Edit line: ", lns[index])?, index);
 			},
 			(Some("?replace"), Some(index)) => {
-				apply_to_lines(&mut text, |lns| lns[index] = input.get_line("Replace with: ")?, index);
+				apply_to_lines(&mut text, |lns, ind| lns[ind] = input.get_line("Replace with: ")?, index);
 			},
 			(Some("?delete"|"?edit"|"?replace"), None) => { println!("{}", err_mes::inv_arg); },
-			(Some(x), _) => { text.append(x); },
+			(Some(x), _) => { text.push_str(x); },
 			(None, _) => (),
 		}
 
