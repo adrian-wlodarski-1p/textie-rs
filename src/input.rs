@@ -1,11 +1,12 @@
-use std::io::{self, Write, BufRead};
-// credit to https://stackoverflow.com/questions/73837411/rust-create-editable-cli-input
+use std::io::{self, Write};
+use std::fmt;
 
-use rustyline::{DefaultEditor};
+// credit to https://stackoverflow.com/questions/73837411/rust-create-editable-cli-input
+use rustyline::{DefaultEditor, error::ReadlineError};
 
 pub struct Input {
 	stdin: io::Stdin,
-	editor: Option<DefaultEditor>
+	editor: Option<DefaultEditor>,
 }
 
 impl Input {
@@ -16,7 +17,7 @@ impl Input {
 		}
 	}
 	
-	pub fn get_line(&mut self, prompt: &str) -> Result<String, io::Error> {
+	pub fn get_line(&mut self, prompt: &str) -> Result<String, InputError> {
 		print!("{}", prompt);
 		io::stdout().flush()?; // send text
 		
@@ -26,14 +27,43 @@ impl Input {
 	}
 	
 	pub fn edit_line(&self, prompt: &str, text: &str) -> rustyline::Result<()> {
-		if self.editor.is_none() { self.editor = Some(DefaultEditor::new()?); }
-		self.editor.readline_with_initial(prompt, (text, ""))?
+		let editor;
+		match self.editor {
+			None => { editor = self.editor = Some(DefaultEditor::new()?); },
+			Some(ed) => { editor = ed; },
+		};
+		editor.readline_with_initial(prompt, (text, ""))?
 	}
 }
 
-fn main() {
-	let mut input = Input::new();
-	assert!(matches!(input.get_line("Test: "), Ok(_)));
-	assert!(matches!(input.edit_line("Test2: ", "default"), Ok(_)));
-	println!("Input.rs loaded successfully.");
+pub enum InputError {
+	GetLineErr(io::Error),
+	EditErr(ReadlineError),
+}
+pub use InputError::*;
+
+impl fmt::Display for InputError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self { GetLineErr(e) => e.fmt(f),
+			         EditErr(e) => e.fmt(f), }
+	}
+}
+impl From<io::Error> for InputError {
+	fn from(e: io::Error) -> Self { GetLineErr(e) }
+}
+impl From<ReadlineError> for InputError {
+	fn from(e: ReadlineError) -> Self { EditErr(e) }
+}
+
+#[cfg(test)]
+mod tests {
+	#[test]
+	pub fn test_get_line() {
+		assert!(matches!(Input::new().edit_line("Test input: "), Ok(_)));
+	}
+	
+	#[test]
+	pub fn test_edit_line() {
+		assert!(matches!(Input::new().edit_line("Test edit: ", "default"), Ok(_)));
+	}
 }
