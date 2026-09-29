@@ -29,10 +29,11 @@ impl Input {
 	pub fn edit_line(&self, prompt: &str, text: &str) -> rustyline::Result<()> {
 		let editor;
 		match self.editor {
-			None => { editor = self.editor = Some(DefaultEditor::new()?); },
+			None => { editor = DefaultEditor::new()?;
+			          self.editor = Some(editor); },
 			Some(ed) => { editor = ed; },
 		};
-		editor.readline_with_initial(prompt, (text, ""))?
+		editor.readline_with_initial(prompt, (text, ""))
 	}
 }
 
